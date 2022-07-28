@@ -1,5 +1,6 @@
 from models.move import Move
 import logging
+import random
 
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -9,37 +10,8 @@ class AtacantePlayer:
     def __init__(self, color):
         self.color = color
         self.cache_board = {}
-        self.depth = 6
+        self.depth = 7
         self.corners = [Move(1, 1), Move(1, 8), Move(8, 1), Move(8, 8)]
-
-        self.weights = [
-            [20, 1, 5, 5, 5, 5, 1, 20],
-            [1, 1, 3, 3, 3, 3, 1, 1],
-            [5, 3, 10, 10, 10, 10, 3, 5],
-            [5, 3, 10, 10, 10, 10, 3, 5],
-            [5, 3, 10, 10, 10, 10, 3, 5],
-            [5, 3, 10, 10, 10, 10, 3, 5],
-            [1, 1, 3, 3, 3, 3, 1, 1],
-            [20, 1, 5, 5, 5, 5, 1, 20],
-        ]
-
-    def check_corner(self, move):
-        if move == Move(1, 1):
-            self.weights[0][1] = 10
-            self.weights[1][0] = 10
-            self.weights[1][1] = 10
-        if move == Move(1, 8):
-            self.weights[0][6] = 10
-            self.weights[1][6] = 10
-            self.weights[1][7] = 10
-        if move == Move(8, 1):
-            self.weights[6][0] = 10
-            self.weights[6][1] = 10
-            self.weights[7][1] = 10
-        if move == Move(8, 8):
-            self.weights[6][7] = 10
-            self.weights[6][6] = 10
-            self.weights[7][6] = 10
 
     @staticmethod
     def get_valid_moves(board, color):
@@ -65,8 +37,7 @@ class AtacantePlayer:
                 score = self.cache_board[str(board_tmp)]
             else:
                 score = self.minimax_min_player(board_tmp, depth - 1, a, b)
-                if depth < 2:
-                    self.cache_board[str(board_tmp)] = score
+                self.cache_board[str(board_tmp)] = score
             # Exclui variável temporária
             del board_tmp
 
@@ -93,8 +64,7 @@ class AtacantePlayer:
                 score = self.cache_board[str(board_tmp)]
             else:
                 score = self.minimax_max_player(board_tmp, depth - 1, a, b)
-                if depth < 2:
-                    self.cache_board[str(board_tmp)] = score
+                self.cache_board[str(board_tmp)] = score
             # Exclui variável temporária
             del board_tmp
             value = min(value, score)
@@ -102,15 +72,6 @@ class AtacantePlayer:
             if value <= a:
                 break
         return value
-
-    @staticmethod
-    def score_index(board, color):
-        if board.WHITE == color:
-            return 0
-        return 1
-
-    def get_score(self, board, color):
-        return board.score()[self.score_index(board, color)]
 
     def play(self, board):
         # Generate valid moves and remove duplicates
@@ -123,26 +84,29 @@ class AtacantePlayer:
         board_tmp = board.get_clone()
         board_tmp.play(best_move, self.color)
         if self.color == board.BLACK:
-            best_score = self.minimax_max_player(board_tmp, self.depth, -9999, 9999)
+            best_score = -9999
         else:
-            best_score = self.minimax_min_player(board_tmp, self.depth, -9999, 9999)
-        del board_tmp
+            best_score = 9999
 
         for move in valid_moves:
+            if move in self.corners:
+                best_move = move
+                break
             board_tmp = board.get_clone()
-            board_tmp.play(move, self.color)
             if self.color == board.BLACK:
                 score = self.minimax_max_player(board_tmp, self.depth, -9999, 9999)
-                score *= self.weights[move.x-1][move.y-1]
                 if score > best_score:
                     best_move = move
                     best_score = score
+                if score == best_score:
+                    best_move = random.choice([best_move, move])
             else:
                 score = self.minimax_min_player(board_tmp, self.depth, -9999, 9999)
-                score *= self.weights[move.x - 1][move.y - 1]
                 if score < best_score:
                     best_move = move
                     best_score = score
+                if score == best_score:
+                    best_move = random.choice([best_move, move])
+            del board_tmp
 
-        self.check_corner(best_move)
         return best_move
